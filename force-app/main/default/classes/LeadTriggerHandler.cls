@@ -1,6 +1,6 @@
 /*
  * The `LeadTriggerHandler` class contains methods designed to handle various business requirements around
- * the Lead object in Salesforce. This includes functionality like normalizing the title field of a lead, 
+ * the Lead object in Salesforce. This includes functionality like normalizing the Title field of a lead, 
  * automatically scoring leads based on certain criteria, and auto-converting leads when certain conditions are met.
  * - Create a test class for `LeadTriggerHandler` to ensure all methods work as expected.
  * - Update the LeadTrigger class to call the `LeadTriggerHandler` methods as needed.
@@ -18,32 +18,37 @@ public with sharing class LeadTriggerHandler {
 	/* 
 	 * Question 1
 	 * Requirement Lead Title Normalization - handleTitleNormalization
-	 * Occasionally, users input titles in a variety of ways. Streamline these titles for consistency:
+	 * Occasionally, users input Titles in a variety of ways. Streamline these Titles for consistency:
 	 *
 	 * Criteria:
-	 * - If the title contains terms such as 'vp', 'v.p.', or 'vice president',
-	 *   change the title to 'Vice President'.
-	 * - If the title contains terms like 'mgr', 'manage', or 'head of department',
-	 *   change the title to 'Manager'.
-	 * - Should the title include words like 'exec', 'chief', or 'head',
-	 *   change the title to 'Executive'.
-	 * - If the title contains terms like 'assist', 'deputy', or 'jr',
-	 *   change the title to 'Assistant'.
+	 * - If the Title contains terms such as 'vp', 'v.p.', or 'vice president',
+	 *   change the Title to 'Vice President'.
+	 * - If the Title contains terms like 'mgr', 'manage', or 'head of department',
+	 *   change the Title to 'Manager'.
+	 * - Should the Title include words like 'exec', 'chief', or 'head',
+	 *   change the Title to 'Executive'.
+	 * - If the Title contains terms like 'assist', 'deputy', or 'jr',
+	 *   change the Title to 'Assistant'.
 	 */
 	public static void handleTitleNormalization(List<Lead> leadsToNormalize) {
 		for (Lead ld : leadsToNormalize) {
-			if (ld.title == 'vp' || ld.title.contains('v.p.') || ld.title.contains('vice president')) {
-				ld.Title = 'Vice President';
-			} else if (
-				ld.title.contains('mgr') ||
-				ld.title.contains('manage') ||
-				ld.title.contains('head of department')
-			) {
-				ld.Title = 'Manager';
-			} else if (ld.title.contains('exec') || ld.title == 'chief' || ld.title.contains('head')) {
-				ld.Title = 'Executive';
-			} else if (ld.title.contains('assist') || ld.title.contains('deputy') || ld.title == 'jr') {
-				ld.Title = 'Assistant';
+			if(ld.Title != null){
+				String tempTitle=ld.Title;
+				ld.Title =ld.Title.toLowerCase();
+			
+				if ((ld.Title.contains('exec') || ld.Title.contains('chief') || ld.Title.contains('head')||ld.Title.contains('ceo'))&& ld.Title != 'executive assistant'&& ld.Title != 'head of department') {
+					ld.Title = 'Executive';
+				} else if (ld.Title.contains( 'vp') || ld.Title.contains('v.p.') || ld.Title.contains('vice president')) {
+					ld.Title = 'Vice President';
+				} else if (ld.Title.contains('mgr') || ld.Title.contains('manage') ||
+					ld.Title.contains('head of department')
+				) {
+					ld.Title = 'Manager';
+				} else if (ld.Title.contains('assist') || ld.Title.contains('deputy') || ld.Title.contains('jr') || ld.Title.contains('junior') ) {
+					ld.Title = 'Assistant';
+				}else {
+					ld.Title=tempTitle;
+				}
 			}
 		}
 	}
