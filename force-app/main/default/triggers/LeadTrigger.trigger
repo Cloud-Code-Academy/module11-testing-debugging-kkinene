@@ -17,19 +17,14 @@
  */
 trigger LeadTrigger on Lead(before insert) {
 	switch on Trigger.operationType {
-		when BEFORE_INSERT {
+		when BEFORE_INSERT,BEFORE_UPDATE { //Since they both call same functions
 			LeadTriggerHandler.handleTitleNormalization(Trigger.new);
 			LeadTriggerHandler.handleAutoLeadScoring(Trigger.new);
 		}
-		when BEFORE_UPDATE {
-			LeadTriggerHandler.handleTitleNormalization(Trigger.new);
-			LeadTriggerHandler.handleAutoLeadScoring(Trigger.new);
-		}
-		when AFTER_INSERT {
+		
+		when AFTER_INSERT, AFTER_UPDATE {//since they both call same function
 			LeadTriggerHandler.handleLeadAutoConvert(Trigger.new);
 		}
-		when AFTER_UPDATE {
-			LeadTriggerHandler.handleLeadAutoConvert(Trigger.new);
-		}
+		
 	}
 }
