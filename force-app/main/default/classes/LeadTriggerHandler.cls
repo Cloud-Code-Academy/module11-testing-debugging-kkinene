@@ -66,19 +66,19 @@ public with sharing class LeadTriggerHandler {
 	 */
 	public static void handleAutoLeadScoring(List<Lead> leadsToScore) {
 		for (Lead ld : leadsToScore) {
-			Integer score = 10;
+			Integer score = 0;
 
 			// Check and add points based on the specified conditions
-			if (ld.LeadSource == 'Website' && ld.Email != null) {
-				score = 3;
+			if (ld.LeadSource == 'Website' && String.isNotBlank(ld.Email)) {
+				score += 3;
 			}
 
-			if (ld.Phone != null) {
-				score = 5;
+			if (String.isNotBlank(ld.Phone)) {
+				score += 5;
 			}
 
-			if (ld.Industry == 'Technology') {
-				score = 10;
+			if (String.isNotBlank(ld.Industry) && ld.Industry == 'Technology') {
+				score += 10;
 			}
 
 			ld.Lead_Score__c = score; // Set the computed score back to the lead
