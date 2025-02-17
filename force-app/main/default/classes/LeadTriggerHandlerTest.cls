@@ -1,6 +1,6 @@
 @isTest
 public class LeadTriggerHandlerTest {
-
+    
     @isTest
     static void testTitleNormalization_VicePresident() {
         // Create Test Data
@@ -240,7 +240,143 @@ public class LeadTriggerHandlerTest {
             System.assertEquals(0, ld.Lead_Score__c, 'Score should be 0 for Website source but no Email'); // Email is required for Website source points
         }
     }
+    
+    @isTest
+    static void testHandleLeadAutoConvert_uniqueMatch() {
+        // Arrange
+        Account testAccount = new Account(Name='Test Account');
+        insert testAccount;
 
+        Contact existingContact = new Contact(
+            FirstName = 'Test',
+            LastName = 'uniqueMatch',
+            Email = 'test@unique.com',
+            AccountId = testAccount.Id);        
+        insert existingContact;
 
-   
+        Lead testLead = new Lead(FirstName='Test', LastName='Lead', 
+                                 Company='Test Co',          
+                                 Email='test@unique.com');
+        insert testLead;
+        
+        
+
+        List<Lead> leadsToConvert = new List<Lead>();
+        leadsToConvert.add(testLead);
+        
+        // Act
+        Test.startTest();
+        LeadTriggerHandler.handleLeadAutoConvert(leadsToConvert);
+        Test.stopTest();
+
+        // Assert
+        //Must query the db to fetch the latest version from the database, which reflects the changes made by the handler.
+        Lead convertedLead = [SELECT Id, IsConverted, ConvertedContactId, ConvertedAccountId, Status
+                              FROM Lead 
+                              WHERE Id = :testLead.Id]; // Query the lead again to get updated values after conversion
+
+        System.assert(convertedLead.IsConverted, 'Lead should be converted'); // Assert Lead is Converted
+        System.assertEquals(existingContact.Id, convertedLead.ConvertedContactId, 'Converted Contact ID should match'); // Assert Converted Contact Id
+        System.assertEquals(testAccount.Id, convertedLead.ConvertedAccountId, 'Converted Account ID should match'); // Assert Converted Account Id
+        //System.assertEquals(true, convertedLead.DoNotCreateOpportunity, 'DoNotCreateOpportunity should be true'); // Assert DoNotCreateOpportunity is True
+        LeadStatus convertStatus = [SELECT MasterLabel FROM LeadStatus WHERE IsConverted = TRUE LIMIT 1];
+        System.assertEquals(convertStatus.MasterLabel, convertedLead.Status, 'Lead status should be the converted status');
+    
+    }
+    @IsTest
+    static void testHandleLeadAutoConvert_noMatch() {
+        // Arrange
+        List<Lead> leadsToConvert = new List<Lead>();
+        Lead testLead = new Lead(FirstName='Test', LastName='Lead', 
+                                 Company='Test Co',          
+                                 Email='test@noMatch.com');
+        insert testLead;
+
+        leadsToConvert.add(testLead);
+
+        // Act
+        Test.startTest();
+        LeadTriggerHandler.handleAutoLeadScoring(leadsToConvert);
+        Test.stopTest();
+
+        // Assert
+        Lead notConvertedLead = [SELECT Id, IsConverted FROM Lead WHERE Id = :testLead.Id];
+        System.assert(!notConvertedLead.IsConverted, 'Lead should not be converted as no matching contact was found');
+        /*When IsConverted is set to true, the following fields are automatically populated by Salesforce:
+
+        ConvertedAccountId: The ID of the account created (or matched) during lead conversion.
+        ConvertedContactId: The ID of the contact created (or matched).
+        ConvertedOpportunityId: The ID of the opportunity created during lead conversion (if an opportunity was created).
+        ConvertedDate: The date and time when the lead was converted.
+        */
+    }
+
+    @isTest
+    static void testHandleLeadAutoConvert_multipleMatches() {
+        // Arrange
+        Account testAccount = new Account(Name='Test Account Multiple');
+        insert testAccount;
+
+        Contact contact1 = new Contact(FirstName='Test', LastName='Multiple1', Email='multi@test.com', AccountId=testAccount.Id);
+        Contact contact2 = new Contact(FirstName='Test', LastName='Multiple2', Email='multi@test.com', AccountId=testAccount.Id);
+        insert new List<Contact> { contact1, contact2 };
+
+        Lead testLead = new Lead(FirstName='Test', LastName='Lead Multiple', Company='Test Co', Email='multi@test.com');
+        insert testLead;
+
+        List<Lead> leadsToConvert = new List<Lead> { testLead };
+
+        // Act
+        Test.startTest();
+        LeadTriggerHandler.handleLeadAutoConvert(leadsToConvert);
+        Test.stopTest();
+
+        // Assert
+        Lead notConvertedLead = [SELECT Id, IsConverted FROM Lead WHERE Id = :testLead.Id];
+        System.assert(!notConvertedLead.IsConverted, 'Lead should not be converted as multiple matching contacts were found');
+    }
+    
+    
+    @isTest
+    static void testHandleLeadAutoConvert_recursionHandling() {
+        // Arrange
+        Lead testLead = new Lead(FirstName = 'Test', LastName = 'Lead Recursion', Company = 'Test Co', Email = 'test@recursion.com');
+        insert testLead;
+
+        List<Lead> leadsToConvert = new List<Lead> { testLead };
+
+        // Act
+        Test.startTest();
+        // Call the handler twice to simulate recursion
+        LeadTriggerHandler.handleLeadAutoConvert(leadsToConvert);
+        LeadTriggerHandler.handleLeadAutoConvert(leadsToConvert);
+        Test.stopTest();
+
+        // Assert
+        Lead notConvertedLead = [SELECT Id, IsConverted FROM Lead WHERE Id = :testLead.Id];
+        System.assert(!notConvertedLead.IsConverted, 'Lead should not be converted due to recursion');
+    }
+
+    @isTest
+    static void testHandleLeadAutoConvert_nullEmail() {
+        // Arrange
+        Lead testLead = new Lead(
+            FirstName='Test',
+            LastName='Null Email Lead',
+            Company='Test Co',
+            Email=null
+        );
+        insert testLead;
+
+        List<Lead> leadsToConvert = new List<Lead> { testLead };
+
+        // Act
+        Test.startTest();
+        LeadTriggerHandler.handleLeadAutoConvert(leadsToConvert);
+        Test.stopTest();
+
+        // Assert
+        Lead notConvertedLead = [SELECT Id, IsConverted FROM Lead WHERE Id = :testLead.Id];
+        System.assert(!notConvertedLead.IsConverted, 'Lead should not be converted if email is null');
+    }
 }
