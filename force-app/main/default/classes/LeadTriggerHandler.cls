@@ -119,7 +119,9 @@ public with sharing class LeadTriggerHandler {
 		Map<String, Contact> emailToContactMap = new Map<String, Contact>();
 		for (Contact c : [SELECT Id, Email, AccountId FROM Contact WHERE Email IN :leadToEmailMap.values()]) {
 			if (!emailToContactMap.containsKey(c.Email)) {
-				emailToContactMap.put(c.Email, c);
+				if(c.email != null){
+					emailToContactMap.put(c.Email, c);
+				}
 			} else {
 				// If we found another contact with the same email, we don't auto-convert.
 				// So we remove the email from the map.

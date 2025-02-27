@@ -1,10 +1,19 @@
 @isTest
 public class LeadTriggerHandlerTest {
+
+    //Implementation of a Test data factory
+    @TestSetup
+    public static void makedata() {
+     TestDataFactory.createAccounts(3);
+       
+    }
+        
     
     @isTest
     static void testTitleNormalization_VicePresident() {
         // Create Test Data
         List<Lead> leadsToTest = new List<Lead>();
+
         leadsToTest.add(new Lead(FirstName = 'Test', LastName = 'Lead VP 1', Company = 'Test Co', Title = 'vp'));
         leadsToTest.add(new Lead(FirstName = 'Test', LastName = 'Lead VP 2', Company = 'Test Co', Title = 'v.p.'));
         leadsToTest.add(new Lead(FirstName = 'Test', LastName = 'Lead VP 3', Company = 'Test Co', Title = 'vice president'));
@@ -128,12 +137,14 @@ public class LeadTriggerHandlerTest {
 
     @isTest
     static void testHandleAutoLeadScoring_sourceAndEmail(){
-        //Create
-        List<Lead> leadsToTest = new List<Lead>{
-            new Lead(Email = 'kkinene@gmail.com', LastName = 'Lead Asst 1', Company = 'Test Co', Website = 'www.linkedIn.com', LeadSource = 'Website'),
-            new Lead(Email = 'kkinene@goldbelt.com', LastName = 'Lead Asst 2', Company = 'Test Co', Website = 'www.apnews.com', LeadSource = 'Website'),
-            new Lead(Email = 'kkinene@cnn.com', LastName = 'Lead Asst 3', Company = 'Test Co', Website = 'www.npr.org', LeadSource = 'Website')
-        };
+        // Create test leads using the Test Data Factory
+        List<Lead> leadsToTest = TestDataFactory.createTestLeads(3);        
+        //Modify Leads to remove the phone number
+        for(lead tempLead: leadsToTest){
+            if (String.isNotBlank(tempLead.Phone)){ 
+                tempLead.Phone = null;
+            }
+        }
         //Test
         Test.startTest();
         LeadTriggerHandler.handleAutoLeadScoring(leadsToTest);
@@ -144,15 +155,33 @@ public class LeadTriggerHandlerTest {
         }
 
     }
+    @isTest
+    static void testHandleAutoLeadScoring_sourceAndEmailAndPhone(){
+        //Create Leads using TestDataFactory
+        List<Lead> leadsToTest = TestDataFactory.createTestLeads(3);
+
+        //Test
+        Test.startTest();
+        LeadTriggerHandler.handleAutoLeadScoring(leadsToTest);
+        Test.stopTest();
+        //Assert
+        for (Lead ld : leadsToTest) {
+            System.assertEquals(8, ld.Lead_Score__c, 'Lead Score should be 8 points');
+        }
+
+    }
 
     @isTest
     static void testHandleAutoLeadScoring_noLeadSourceOrEmail(){
-        //Create
-        List<Lead> leadsToTest = new List<Lead>{
-            new Lead(Email = '', LastName = 'Lead Asst 1', Company = 'Test Co', Website = 'www.linkedIn.com', LeadSource = ''),
-            new Lead(Email = '', LastName = 'Lead Asst 2', Company = 'Test Co', Website = 'www.apnews.com', LeadSource = 'Website'),
-            new Lead(Email = 'kkinene@cnn.com', LastName = 'Lead Asst 3', Company = 'Test Co', Website = 'www.npr.org', LeadSource = '')
-        };
+        //Create Leads using TestDataFactory
+        List<Lead> leadsToTest = TestDataFactory.createTestLeads(253);
+
+        for(lead tempLead: leadsToTest){
+            tempLead.LeadSource = '';
+            tempLead.Phone = '';
+            tempLead.Email = '';
+        }
+
         //Test
         Test.startTest();
         LeadTriggerHandler.handleAutoLeadScoring(leadsToTest);
@@ -167,17 +196,25 @@ public class LeadTriggerHandlerTest {
     
     @isTest
     static void testHandleAutoLeadScoring_Phone() {
-        // Arrange
-        List<Lead> leadsToScore = new List<Lead>();
-        leadsToScore.add(new Lead(FirstName = 'Test', LastName = 'ScoreLead_Phone', Company = 'Test Co', Phone = '123-456-7890'));
+        //Create Leads using TestDataFactory
+        List<Lead> leadsToTest = TestDataFactory.createTestLeads(3);
+
+        //Modify the leads to match the Phone Criteria
+        leadsToTest[0].LeadSource = '';
+        leadsToTest[1].LeadSource = '';
+        leadsToTest[2].LeadSource = '';
+        leadsToTest[0].Email = '';
+        leadsToTest[1].Email = '';
+        leadsToTest[2].Email = '';
+        
 
         // Act
         Test.startTest();
-        LeadTriggerHandler.handleAutoLeadScoring(leadsToScore);
+        LeadTriggerHandler.handleAutoLeadScoring(leadsToTest);
         Test.stopTest();
 
         // Assert
-        for (Lead ld : leadsToScore) {
+        for (Lead ld : leadsToTest) {
             System.assertEquals(5, ld.Lead_Score__c, 'Score should be 5 for having a valid Phone');
         }
     }
@@ -198,6 +235,8 @@ public class LeadTriggerHandlerTest {
             System.assertEquals(10, ld.Lead_Score__c, 'Score should be 10 for Industry being Technology');
         }
     }
+
+    
 
     @isTest
     static void testHandleAutoLeadScoring_CombinedCriteria() {
@@ -237,7 +276,7 @@ public class LeadTriggerHandlerTest {
 
         // Assert
         for (Lead ld : leadsToScore) {
-            System.assertEquals(0, ld.Lead_Score__c, 'Score should be 0 for Website source but no Email'); // Email is required for Website source points
+            System.assertEquals(0, ld.Lead_Score__c, 'Score should be 0 for Lead source equal to Website and no Email Address'); // Email is required for Website source points
         }
     }
     
@@ -288,20 +327,19 @@ public class LeadTriggerHandlerTest {
         // Arrange
         List<Lead> leadsToConvert = new List<Lead>();
         Lead testLead = new Lead(FirstName='Test', LastName='Lead', 
-                                 Company='Test Co',          
-                                 Email='test@noMatch.com');
+                                 Company='Test Co', Email='test@noMatch.com');
         insert testLead;
-
+    
         leadsToConvert.add(testLead);
-
+    
         // Act
         Test.startTest();
         LeadTriggerHandler.handleAutoLeadScoring(leadsToConvert);
         Test.stopTest();
-
+    
         // Assert
         Lead notConvertedLead = [SELECT Id, IsConverted FROM Lead WHERE Id = :testLead.Id];
-        System.assert(!notConvertedLead.IsConverted, 'Lead should not be converted as no matching contact was found');
+        Assert.isTrue(!notConvertedLead.IsConverted, 'Lead should not be converted as no matching contact was found');
         /*When IsConverted is set to true, the following fields are automatically populated by Salesforce:
 
         ConvertedAccountId: The ID of the account created (or matched) during lead conversion.
@@ -310,7 +348,7 @@ public class LeadTriggerHandlerTest {
         ConvertedDate: The date and time when the lead was converted.
         */
     }
-
+    
     @isTest
     static void testHandleLeadAutoConvert_multipleMatches() {
         // Arrange
