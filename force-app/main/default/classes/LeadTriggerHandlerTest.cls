@@ -120,7 +120,6 @@ public class LeadTriggerHandlerTest {
         }
     }
     @isTest
-
     static void testTitleNormalization_emptyCase() {
         List<Lead> leadsToTest = new List<Lead>{
             new Lead(FirstName = 'Test', LastName = 'Lead Empty Title', Company = 'Test Co', Title = '')
